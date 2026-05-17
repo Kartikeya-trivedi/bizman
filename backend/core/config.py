@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Gemini / Google AI
     google_api_key: str
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-3.0-flash"
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_dimensions: int = 384
 
@@ -45,7 +45,14 @@ class Settings(BaseSettings):
     short_term_max_turns: int = 10
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "http://localhost:4000",
+        "http://127.0.0.1:4000"
+    ]
 
     # Exports
     exports_dir: str = "exports"
