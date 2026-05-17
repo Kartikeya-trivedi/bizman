@@ -1,6 +1,7 @@
 """
 BizMind AI — Document Ingestion Pipeline
 PDF/TXT → extract → chunk → embed → store in Supabase pgvector
+Uses local HuggingFace SentenceTransformer for embeddings.
 """
 import io
 import re
@@ -8,10 +9,9 @@ import uuid
 from datetime import datetime, timezone
 
 import tiktoken
-from google import genai
-from google.genai import types
 
 from backend.core.config import get_settings
+from backend.core.embedder import embed_text
 from backend.core.errors import retry
 from backend.core.logging import get_logger
 from backend.core.supabase import get_supabase_admin
@@ -69,13 +69,9 @@ def _chunk_text(text: str, chunk_size: int = 600, overlap: int = 100) -> list[st
 
 
 @retry(max_attempts=3, base_delay=1.0)
-async def _embed_text(text: str, client: genai.Client, model: str) -> list[float]:
-    result = client.models.embed_content(
-        model=model,
-        contents=text,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
-    )
-    return result.embeddings[0].values
+async def _embed_chunk(text: str) -> list[float]:
+    """Embed a single chunk using local HuggingFace model."""
+    return embed_text(text)
 
 
 async def ingest_document(
@@ -87,7 +83,6 @@ async def ingest_document(
 ) -> int:
     settings = get_settings()
     sb = get_supabase_admin()
-    client = genai.Client(api_key=settings.google_api_key)
 
     text = _extract_text(content, content_type)
     if not text.strip():
@@ -112,7 +107,7 @@ async def ingest_document(
     chunk_rows = []
     for idx, chunk in enumerate(chunks):
         try:
-            embedding = await _embed_text(chunk, client, settings.embedding_model)
+            embedding = await _embed_chunk(chunk)
             chunk_rows.append(
                 {
                     "id": str(uuid.uuid4()),

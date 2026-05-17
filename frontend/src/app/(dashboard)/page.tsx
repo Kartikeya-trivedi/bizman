@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const maxQueries = Math.max(...aiUsage.map((d) => d.total_queries), 1);
 
   return (
-    <main className="ml-[260px] pt-24 px-6 pb-10 max-w-[1440px] mx-auto min-h-screen">
+    <main className="ml-(--spacing-sidebar-width) pt-24 px-6 pb-10 max-w-screen-2xl mx-auto min-h-screen">
       {/* Header */}
       <header className="mb-8 flex items-end justify-between">
         <div>
@@ -83,7 +83,7 @@ export default function DashboardPage() {
                     style={{ height: `${(day.total_queries / maxQueries) * 100}%` }}
                     title={`${day.total_queries} queries`}
                   />
-                  <span className="text-[10px] text-on-surface-variant">
+                  <span className="text-xs text-on-surface-variant">
                     {new Date(day.date).toLocaleDateString("en-US", { weekday: "short" })}
                   </span>
                 </div>

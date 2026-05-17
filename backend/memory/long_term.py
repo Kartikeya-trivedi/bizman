@@ -1,15 +1,15 @@
 """
 BizMind AI — Long-Term Memory
-Extracts key user facts via Gemini and persists in Supabase user_memory table.
+Extracts key user facts via Agno Agent (Gemini) and persists in Supabase user_memory table.
 """
 import json
 import re
 from datetime import datetime, timezone
 
-from google import genai
-from google.genai import types
+from agno.agent import Agent
 
 from backend.core.config import get_settings
+from backend.core.gemini import get_gemini_model
 from backend.core.logging import get_logger
 from backend.core.supabase import get_supabase_admin
 
@@ -40,24 +40,22 @@ async def save_user_memory(user_id: str, history: list[dict]) -> None:
     if len(history) < 2:
         return
 
-    settings = get_settings()
-    client = genai.Client(api_key=settings.google_api_key)
+    agent = Agent(
+        name="BizMind Memory Extractor",
+        model=get_gemini_model(temperature=0.0, max_tokens=300),
+        instructions=MEMORY_EXTRACTION_PROMPT,
+        markdown=False,
+    )
 
     history_text = "\n".join(
         f"{m['role'].upper()}: {m['content']}" for m in history[-10:]
     )
 
     try:
-        response = client.models.generate_content(
-            model=settings.gemini_model,
-            contents=history_text,
-            config=types.GenerateContentConfig(
-                system_instruction=MEMORY_EXTRACTION_PROMPT,
-                temperature=0.0,
-                max_output_tokens=300,
-            ),
-        )
-        text = response.text.strip()
+        response = await agent.arun(history_text)
+        text = response.content.strip() if isinstance(response.content, str) else str(response.content)
+
+        # Strip markdown code fences if present
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.MULTILINE)
         text = re.sub(r"\s*```$", "", text, flags=re.MULTILINE)
 

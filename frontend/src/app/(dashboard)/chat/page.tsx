@@ -95,7 +95,7 @@ export default function ChatPage() {
   };
 
   return (
-    <main className="flex-1 flex flex-col ml-[260px] h-screen relative overflow-hidden pt-16">
+    <main className="flex-1 flex flex-col ml-(--spacing-sidebar-width) h-screen relative overflow-hidden pt-16">
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel: Documents */}
         <aside className="w-64 border-r border-outline-variant bg-surface-container-low flex flex-col">

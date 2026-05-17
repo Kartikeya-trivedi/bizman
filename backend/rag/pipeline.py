@@ -1,19 +1,20 @@
 """
 BizMind AI — RAG Query Pipeline
 1. Check Redis cache (MD5 hash)
-2. Embed query with Gemini text-embedding-004
+2. Embed query with local HuggingFace SentenceTransformer
 3. pgvector cosine similarity search (top 5)
 4. Confidence gate (similarity < 0.35 → "no info" response)
-5. Build context, call Gemini 2.0 Flash
+5. Build context, call Agno Agent (Gemini 2.0 Flash)
 6. Cache result, return answer + sources + scores
 """
 from dataclasses import dataclass, field
 
-from google import genai
-from google.genai import types
+from agno.agent import Agent
 
 from backend.core.config import get_settings
+from backend.core.embedder import embed_text
 from backend.core.errors import retry, LLM_FALLBACK
+from backend.core.gemini import get_gemini_model
 from backend.core.logging import get_logger
 from backend.core.supabase import get_supabase_admin
 from backend.rag.cache import cache_get, cache_set
@@ -46,15 +47,8 @@ class RAGResult:
 
 @retry(max_attempts=3, base_delay=1.0)
 async def _embed_query(query: str) -> list[float]:
-    """Embed a user query for similarity search."""
-    settings = get_settings()
-    client = genai.Client(api_key=settings.google_api_key)
-    result = client.models.embed_content(
-        model=settings.embedding_model,
-        contents=query,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
-    )
-    return result.embeddings[0].values
+    """Embed a user query for similarity search using local HuggingFace model."""
+    return embed_text(query)
 
 
 async def _vector_search(embedding: list[float], user_id: str, top_k: int = 5) -> list[dict]:
@@ -73,20 +67,16 @@ async def _vector_search(embedding: list[float], user_id: str, top_k: int = 5) -
 
 @retry(max_attempts=3, base_delay=1.0)
 async def _generate_answer(query: str, context: str) -> str:
-    """Generate a grounded answer from context using Gemini."""
-    settings = get_settings()
-    client = genai.Client(api_key=settings.google_api_key)
-    prompt = f"Context:\n{context}\n\nUser question: {query}"
-    response = client.models.generate_content(
-        model=settings.gemini_model,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=RAG_SYSTEM_PROMPT,
-            temperature=0.2,
-            max_output_tokens=1024,
-        ),
+    """Generate a grounded answer from context using Agno Agent (Gemini)."""
+    agent = Agent(
+        name="BizMind RAG Generator",
+        model=get_gemini_model(temperature=0.2, max_tokens=1024),
+        instructions=RAG_SYSTEM_PROMPT,
+        markdown=True,
     )
-    return response.text
+    prompt = f"Context:\n{context}\n\nUser question: {query}"
+    response = await agent.arun(prompt)
+    return response.content
 
 
 async def run_rag_pipeline(query: str, user_id: str) -> RAGResult:

@@ -42,8 +42,8 @@ export default function LeadsPage() {
   };
 
   return (
-    <main className="pt-16 ml-[260px] min-h-screen">
-      <div className="p-6 max-w-[1440px] mx-auto">
+    <main className="pt-16 ml-(--spacing-sidebar-width) min-h-screen">
+      <div className="p-6 max-w-screen-2xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
@@ -113,7 +113,7 @@ export default function LeadsPage() {
                   <td className="px-4 py-3 font-medium text-on-surface">{lead.name}</td>
                   <td className="px-4 py-3 text-on-surface-variant">{lead.email || "—"}</td>
                   <td className="px-4 py-3 text-on-surface-variant">{lead.company || "—"}</td>
-                  <td className="px-4 py-3 text-on-surface-variant max-w-[200px] truncate">{lead.need || "—"}</td>
+                  <td className="px-4 py-3 text-on-surface-variant max-w-48 truncate">{lead.need || "—"}</td>
                   <td className="px-4 py-3">
                     <LeadBadge status={lead.status as "hot" | "warm" | "cold"} />
                   </td>

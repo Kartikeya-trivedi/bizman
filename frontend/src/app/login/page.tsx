@@ -37,7 +37,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col login-mesh selection:bg-primary-container selection:text-on-primary-container">
-      <main className="flex-grow flex items-center justify-center p-md">
+      <main className="flex-grow flex items-center justify-center p-4 w-full">
         <div className="w-full max-w-sm">
           {/* Logo */}
           <div className="text-center mb-8">

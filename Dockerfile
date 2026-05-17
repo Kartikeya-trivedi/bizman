@@ -18,5 +18,8 @@ COPY backend/ ./backend/
 # Create required directories
 RUN mkdir -p logs exports
 
+# Pre-download HuggingFace embedding model so it's baked into the image
+RUN uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
 # Run with uv
 CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

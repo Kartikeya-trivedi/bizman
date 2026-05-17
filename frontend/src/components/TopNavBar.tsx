@@ -13,11 +13,11 @@ export default function TopNavBar() {
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? "??";
 
   return (
-    <header className="fixed top-0 right-0 h-16 w-[calc(100%-260px)] z-40 flex justify-between items-center px-6 glass-nav border-b border-outline-variant">
+    <header className="fixed top-0 right-0 h-16 w-[calc(100%-var(--spacing-sidebar-width))] z-40 flex justify-between items-center px-6 glass-nav border-b border-outline-variant">
       {/* Search */}
       <div className="flex items-center flex-1 max-w-xl">
         <div className="relative w-full group focus-within:ring-1 focus-within:ring-primary rounded-lg">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl">
             search
           </span>
           <input
@@ -44,7 +44,7 @@ export default function TopNavBar() {
             {initials}
           </div>
           {user && (
-            <span className="hidden md:block text-xs text-on-surface-variant max-w-[120px] truncate">
+            <span className="hidden md:block text-xs text-on-surface-variant max-w-32 truncate">
               {user.email}
             </span>
           )}

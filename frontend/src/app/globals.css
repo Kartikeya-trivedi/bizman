@@ -55,15 +55,8 @@
   --radius-full: 9999px;
 
   --spacing-gutter: 16px;
-  --spacing-sm: 8px;
-  --spacing-xl: 32px;
   --spacing-margin-desktop: 32px;
-  --spacing-lg: 24px;
   --spacing-margin-mobile: 16px;
-  --spacing-md: 16px;
-  --spacing-2xl: 48px;
-  --spacing-xs: 4px;
-  --spacing-base: 4px;
   --spacing-sidebar-width: 260px;
 
   --font-headline-sm: var(--font-geist-sans);

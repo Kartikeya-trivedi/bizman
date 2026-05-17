@@ -39,8 +39,8 @@ export default function WorkflowsPage() {
   };
 
   return (
-    <main className="ml-[260px] min-h-screen">
-      <div className="pt-24 px-6 pb-10 max-w-[1440px] mx-auto">
+    <main className="ml-(--spacing-sidebar-width) min-h-screen">
+      <div className="pt-24 px-6 pb-10 max-w-screen-2xl mx-auto">
         <header className="mb-8">
           <h1 className="text-2xl font-bold text-on-surface">Workflows</h1>
           <p className="text-sm text-on-surface-variant mt-0.5">Trigger AI-powered business workflows.</p>

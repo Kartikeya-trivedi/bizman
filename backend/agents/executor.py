@@ -2,17 +2,16 @@
 BizMind AI — Executor Agent
 Routes tasks based on Planner intent and executes them.
 Handles: rag | lead_capture | general | workflow
+Uses Agno Agent for LLM interactions.
 """
-import json
-import re
 import uuid
 from datetime import datetime, timezone
 
-from google import genai
-from google.genai import types
+from agno.agent import Agent
 
 from backend.core.config import get_settings
 from backend.core.errors import retry, LLM_FALLBACK
+from backend.core.gemini import get_gemini_model
 from backend.core.logging import get_logger
 from backend.core.supabase import get_supabase_admin
 from backend.models.schemas import LeadExtraction, PlannerResult
@@ -24,7 +23,7 @@ You help with business strategy, customer management, document analysis, and gen
 Be professional, concise, and actionable. When relevant, structure your response with clear headings or bullet points.
 """
 
-LEAD_EXTRACTION_PROMPT = """Extract lead information from the user's message. Return ONLY valid JSON.
+LEAD_EXTRACTION_PROMPT = """Extract lead information from the user's message.
 
 Fields to extract:
 - name: person's name (required if mentioned)
@@ -35,15 +34,6 @@ Fields to extract:
   * "hot" = asked about pricing, demo, trial, wants to buy, urgent need
   * "warm" = showed clear interest, asked specific questions
   * "cold" = general inquiry, just browsing
-
-Return format:
-{
-  "name": "...",
-  "email": "..." or null,
-  "company": "..." or null,
-  "need": "...",
-  "status": "hot|warm|cold"
-}
 """
 
 
@@ -63,11 +53,11 @@ async def execute(
     if intent == "rag":
         return await _execute_rag(message, user_id)
     elif intent == "lead_capture":
-        return await _execute_lead_capture(message, user_id, settings)
+        return await _execute_lead_capture(message, user_id)
     elif intent == "workflow":
         return await _execute_workflow(message, planner_result.workflow_name)
     else:
-        return await _execute_general(message, history, user_memory, settings)
+        return await _execute_general(message, history, user_memory)
 
 
 async def _execute_rag(message: str, user_id: str) -> dict:
@@ -81,24 +71,19 @@ async def _execute_rag(message: str, user_id: str) -> dict:
     }
 
 
-async def _execute_lead_capture(message: str, user_id: str, settings) -> dict:
-    """Extract lead info from message, classify, and store in Supabase."""
-    client = genai.Client(api_key=settings.google_api_key)
+async def _execute_lead_capture(message: str, user_id: str) -> dict:
+    """Extract lead info from message using Agno Agent with structured output."""
+    agent = Agent(
+        name="BizMind Lead Extractor",
+        model=get_gemini_model(temperature=0.1, max_tokens=300),
+        instructions=LEAD_EXTRACTION_PROMPT,
+        output_schema=LeadExtraction,
+        markdown=False,
+    )
+
     try:
-        response = client.models.generate_content(
-            model=settings.gemini_model,
-            contents=message,
-            config=types.GenerateContentConfig(
-                system_instruction=LEAD_EXTRACTION_PROMPT,
-                temperature=0.1,
-                max_output_tokens=300,
-            ),
-        )
-        text = response.text.strip()
-        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.MULTILINE)
-        text = re.sub(r"\s*```$", "", text, flags=re.MULTILINE)
-        data = json.loads(text)
-        lead = LeadExtraction(**data)
+        response = await agent.arun(message)
+        lead: LeadExtraction = response.content
     except Exception as exc:
         logger.warning("Lead extraction parse failed", error=str(exc))
         lead = LeadExtraction(name="Unknown", need=message, status="cold")
@@ -151,34 +136,29 @@ async def _execute_general(
     message: str,
     history: list[dict],
     user_memory: str,
-    settings,
 ) -> dict:
-    """Direct Gemini response with conversation history and user memory."""
+    """Agno Agent response with conversation history and user memory."""
     memory_block = f"\n\nUser context from memory:\n{user_memory}" if user_memory else ""
     system = GENERAL_SYSTEM_PROMPT + memory_block
 
-    client = genai.Client(api_key=settings.google_api_key)
-
-    # Build content history for the new SDK
-    contents = []
-    for msg in history[-20:]:
-        role = "user" if msg["role"] == "user" else "model"
-        contents.append(types.Content(role=role, parts=[types.Part(text=msg["content"])]))
-
-    # Add the current user message
-    contents.append(types.Content(role="user", parts=[types.Part(text=message)]))
-
-    response = client.models.generate_content(
-        model=settings.gemini_model,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=system,
-            temperature=0.7,
-            max_output_tokens=1024,
-        ),
+    agent = Agent(
+        name="BizMind Assistant",
+        model=get_gemini_model(temperature=0.7, max_tokens=1024),
+        instructions=system,
+        markdown=True,
     )
+
+    # Build conversation context for the prompt
+    history_lines = []
+    for msg in history[-20:]:
+        role = "USER" if msg["role"] == "user" else "ASSISTANT"
+        history_lines.append(f"{role}: {msg['content']}")
+    history_lines.append(f"USER: {message}")
+    prompt = "\n".join(history_lines)
+
+    response = await agent.arun(prompt)
     return {
-        "answer": response.text,
+        "answer": response.content,
         "sources": [],
         "similarity_scores": [],
         "rag_context": "",

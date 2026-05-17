@@ -68,8 +68,8 @@ export default function DocumentsPage() {
   };
 
   return (
-    <main className="ml-[260px] min-h-screen">
-      <div className="pt-24 px-6 pb-10 max-w-[1440px] mx-auto">
+    <main className="ml-(--spacing-sidebar-width) min-h-screen">
+      <div className="pt-24 px-6 pb-10 max-w-screen-2xl mx-auto">
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-on-surface">Documents</h1>
           <p className="text-sm text-on-surface-variant mt-0.5">Upload PDFs and text files for AI-powered RAG search.</p>

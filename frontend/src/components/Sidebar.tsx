@@ -67,7 +67,7 @@ export default function Sidebar() {
             <p className="font-label-md text-label-md text-on-surface font-bold truncate">
               Admin User
             </p>
-            <p className="font-label-md text-[10px] text-on-surface-variant truncate">
+            <p className="font-label-md text-xs text-on-surface-variant truncate">
               Enterprise Account
             </p>
           </div>

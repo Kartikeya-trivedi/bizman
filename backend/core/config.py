@@ -28,8 +28,8 @@ class Settings(BaseSettings):
     # Gemini / Google AI
     google_api_key: str
     gemini_model: str = "gemini-2.0-flash"
-    embedding_model: str = "models/text-embedding-004"
-    embedding_dimensions: int = 768
+    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_dimensions: int = 384
 
     # Redis
     redis_url: str = "redis://localhost:6379"
