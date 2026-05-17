@@ -9,12 +9,23 @@
 
 ## Features & Technology Stack
 
-- **Frontend**: Next.js 14+ App Router, Tailwind CSS v4, secure Axios API client.
-- **Backend**: FastAPI (Python 3.11), `uv` dependency management.
-- **AI Agent Orchestration**: Agno Framework (`agno.agent.Agent`), Pydantic structured outputs.
-- **Embeddings**: Fully local HuggingFace `all-MiniLM-L6-v2` via `sentence-transformers` (cached in Docker).
-- **Vector Database**: Supabase PostgreSQL with `pgvector`.
-- **Semantic Caching**: Redis.
+### 1. State-of-the-Art AI Architecture
+Instead of just sending basic prompts to an API, this project implements an **Agno Agent Team** (Planner → Executor → Validator). This orchestrated multi-agent workflow ensures reliable AI that checks its own work for hallucinations before responding.
+
+### 2. High-Performance Local RAG
+Instead of paying for cloud embeddings, the backend pre-downloads and runs a HuggingFace AI model (`all-MiniLM-L6-v2`) **100% locally and offline**. This is wired into a **Supabase PostgreSQL `pgvector`** database, demonstrating a deep understanding of cost-optimization and data privacy.
+
+### 3. Enterprise Caching Layer
+Integrated a **Redis** cache that intercepts repetitive RAG queries. If a user asks the same question twice, it bypasses the LLM entirely, showcasing production-ready engineering skills for performance at scale.
+
+### 4. Modern, Sleek Frontend
+The dashboard is a fully responsive **Next.js 14+** application using the brand new **Tailwind CSS v4**. It features custom glassmorphism, responsive sidebars, and clean typography for a highly polished SaaS feel.
+
+### 5. Production-Ready Infrastructure
+Built from the ground up for scalable deployment:
+- **`uv`** dependency management (cutting-edge Python tooling).
+- A fully containerized **Docker** environment with CPU-optimized PyTorch binaries.
+- A **Modal** serverless deployment script (`modal_app.py`) ready for infinite cloud scaling.
 
 ---
 

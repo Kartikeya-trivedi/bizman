@@ -1,0 +1,45 @@
+# Frontend (not needed in backend Docker image)
+frontend
+node_modules
+
+# Python virtual environments
+.venv
+venv
+ENV
+
+# Version control
+.git
+.gitignore
+
+# Environment files
+*.env
+.env.*
+
+# Build artifacts & caches
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.tox
+
+# Logs & exports (mounted as volumes at runtime)
+logs
+exports
+
+# IDE & OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker
+docker-compose.yml
+
+# Modal (deployed separately)
+modal_app.py
+
+# Documentation
+*.md
+!README.md
