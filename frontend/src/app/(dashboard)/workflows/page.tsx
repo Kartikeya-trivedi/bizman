@@ -41,9 +41,18 @@ export default function WorkflowsPage() {
   return (
     <main className="ml-(--spacing-sidebar-width) min-h-screen">
       <div className="pt-24 px-6 pb-10 max-w-screen-2xl mx-auto">
-        <header className="mb-8">
-          <h1 className="text-2xl font-bold text-on-surface">Workflows</h1>
-          <p className="text-sm text-on-surface-variant mt-0.5">Trigger AI-powered business workflows.</p>
+        <header className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-on-surface">Workflows</h1>
+            <p className="text-sm text-on-surface-variant mt-0.5">Trigger AI-powered business workflows.</p>
+          </div>
+          <button
+            onClick={() => window.location.href = "/workflows/builder"}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-medium hover:opacity-90 transition-all cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-sm">dashboard_customize</span>
+            Visual Builder
+          </button>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

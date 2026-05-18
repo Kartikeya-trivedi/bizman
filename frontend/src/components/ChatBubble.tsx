@@ -3,9 +3,13 @@
  * Message bubble for user and assistant messages.
  */
 
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
 interface ChatBubbleProps {
   role: "user" | "assistant";
   content: string;
+  images?: string[];
   sources?: string[];
   hallucination_flagged?: boolean;
   timestamp?: string;
@@ -14,6 +18,7 @@ interface ChatBubbleProps {
 export default function ChatBubble({
   role,
   content,
+  images = [],
   sources = [],
   hallucination_flagged = false,
   timestamp,
@@ -39,14 +44,51 @@ export default function ChatBubble({
 
       {/* Bubble */}
       <div className={`max-w-[75%] flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`}>
+        {/* Images */}
+        {images && images.length > 0 && (
+          <div className="flex gap-2 flex-wrap mb-1">
+            {images.map((img, i) => (
+              <img key={i} src={img} alt="Attached" className="max-w-[200px] max-h-[200px] object-cover rounded-lg border border-outline-variant" />
+            ))}
+          </div>
+        )}
+
         <div
-          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+          className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
             isUser
-              ? "bg-primary text-on-primary rounded-tr-sm"
-              : "bg-surface-container text-on-surface border border-outline-variant rounded-tl-sm"
+              ? "bg-primary text-on-primary rounded-tr-sm whitespace-pre-wrap"
+              : "bg-surface-container text-on-surface border border-outline-variant rounded-tl-sm markdown-body"
           }`}
         >
-          {content}
+          {isUser ? (
+            content
+          ) : (
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-2" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal ml-4 mb-2" {...props} />,
+                li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-3 mb-2" {...props} />,
+                h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
+                h3: ({node, ...props}) => <h3 className="font-bold mt-2 mb-1" {...props} />,
+                code: ({node, className, children, ...props}) => {
+                  const match = /language-(\w+)/.exec(className || '');
+                  return match ? (
+                    <pre className="bg-surface-variant text-on-surface p-2 rounded text-xs overflow-x-auto mt-2 mb-2">
+                      <code className={className} {...props}>{children}</code>
+                    </pre>
+                  ) : (
+                    <code className="bg-surface-variant text-on-surface px-1 py-0.5 rounded text-xs font-mono" {...props}>{children}</code>
+                  )
+                },
+                strong: ({node, ...props}) => <strong className="font-bold text-primary" {...props} />,
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          )}
         </div>
 
         {/* Sources */}

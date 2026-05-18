@@ -13,18 +13,26 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
       if (mode === "login") {
         await authHelpers.login(email, password);
+        router.push("/");
       } else {
-        await authHelpers.register(email, password, fullName);
+        const res = await authHelpers.register(email, password, fullName);
+        if (!res.access_token) {
+          setSuccess("Account created successfully! Please check your email to verify your account before signing in.");
+          setMode("login");
+        } else {
+          router.push("/");
+        }
       }
-      router.push("/");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
@@ -55,7 +63,7 @@ export default function LoginPage() {
             {/* Tabs */}
             <div className="flex rounded-lg bg-surface-container-low p-1 mb-6 gap-1">
               <button
-                onClick={() => { setMode("login"); setError(null); }}
+                onClick={() => { setMode("login"); setError(null); setSuccess(null); }}
                 className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                   mode === "login"
                     ? "bg-primary text-on-primary shadow"
@@ -65,7 +73,7 @@ export default function LoginPage() {
                 Sign In
               </button>
               <button
-                onClick={() => { setMode("register"); setError(null); }}
+                onClick={() => { setMode("register"); setError(null); setSuccess(null); }}
                 className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
                   mode === "register"
                     ? "bg-primary text-on-primary shadow"
@@ -114,6 +122,11 @@ export default function LoginPage() {
                 />
               </div>
 
+              {success && (
+                <p className="text-xs text-primary bg-primary-container/20 border border-primary/30 rounded-lg px-3 py-2">
+                  {success}
+                </p>
+              )}
               {error && (
                 <p className="text-xs text-error bg-error-container/20 border border-error/30 rounded-lg px-3 py-2">
                   {error}

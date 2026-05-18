@@ -20,5 +20,5 @@ def get_gemini_model(
         id=settings.gemini_model,
         api_key=settings.google_api_key,
         temperature=temperature,
-        max_tokens=max_tokens,
+        max_output_tokens=max_tokens,
     )

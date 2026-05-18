@@ -5,8 +5,9 @@
  */
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Use the Next.js proxy route so browser calls stay same-origin.
+// This works regardless of what IP/hostname the dev server is accessed from.
+const API_BASE_URL = "/api/proxy";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -33,7 +34,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
         localStorage.removeItem("bizmind_token");
         localStorage.removeItem("bizmind_user");
         window.location.href = "/login";
@@ -116,8 +117,27 @@ export const authApi = {
 };
 
 export const chatApi = {
-  send: (message: string, conversation_id?: string, session_id?: string) =>
-    api.post<ChatResponse>("/chat", { message, conversation_id, session_id }),
+  send: (message: string, images?: string[], conversation_id?: string, session_id?: string) =>
+    api.post<ChatResponse>("/chat", { message, images, conversation_id, session_id, stream: false }),
+  sendStream: async (message: string, images?: string[], conversation_id?: string, session_id?: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("bizmind_token") : null;
+    return fetch("/api/proxy/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message, images, conversation_id, session_id, stream: true }),
+    });
+  },
+  transcribe: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post<{ text: string }>("/chat/transcribe", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+  history: () => api.get<{messages: any[], conversation_id: string | null}>("/chat/history")
 };
 
 export const leadsApi = {
@@ -145,6 +165,7 @@ export const dashboardApi = {
   conversationLogs: () => api.get("/dashboard/conversation-logs"),
   workflowLogs: () => api.get<WorkflowLog[]>("/dashboard/workflow-logs"),
   aiUsage: () => api.get("/dashboard/ai-usage"),
+  agentTraces: () => api.get("/dashboard/agent-traces"),
 };
 
 export const workflowsApi = {

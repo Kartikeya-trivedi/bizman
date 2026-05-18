@@ -38,6 +38,8 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
+    images: list[str] = []
+    stream: bool = False
     conversation_id: str | None = None
     session_id: str | None = None
 

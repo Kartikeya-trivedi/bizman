@@ -27,7 +27,11 @@ class Settings(BaseSettings):
 
     # Gemini / Google AI
     google_api_key: str
-    gemini_model: str = "gemini-3.0-flash"
+    gemini_model: str = "gemini-3.1-flash-lite"
+    
+    # Groq (Voice)
+    groq_api_key: str | None = None
+    
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_dimensions: int = 384
 
@@ -39,7 +43,7 @@ class Settings(BaseSettings):
     rag_chunk_size: int = 600       # tokens
     rag_chunk_overlap: int = 100    # tokens
     rag_top_k: int = 5
-    rag_similarity_threshold: float = 0.35
+    rag_similarity_threshold: float = 0.0
 
     # Memory
     short_term_max_turns: int = 10
@@ -63,3 +67,5 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Cached settings singleton."""
     return Settings()
+
+# Trigger reload

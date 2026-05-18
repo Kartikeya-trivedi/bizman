@@ -4,6 +4,7 @@ Classifies user intent into: rag | lead_capture | general | workflow
 Uses Agno Agent with structured output (PlannerResult).
 """
 from agno.agent import Agent
+from agno.media import Image as AgnoImage
 
 from backend.core.config import get_settings
 from backend.core.errors import retry, LLM_FALLBACK
@@ -22,16 +23,17 @@ Given a user message, classify it into exactly ONE of these intents:
 - "general": General conversation, questions about capabilities, or anything else
 
 Rules:
+- If the user explicitly asks to "summarize the document" or "summarize this document", ALWAYS output "rag". Do this even if the conversation history says no document exists.
+- If asking about a specific document, policy, report, or "what does the document say" → rag
 - If the user mentions their name, email, or company in context of getting help → lead_capture
 - If asking about pricing, demo, trial → lead_capture (hot)
-- If asking about a specific document, policy, report, or "what does the document say" → rag
 - If asking to summarize an email, export data, notify → workflow
 - Otherwise → general
 """
 
 
 @retry(max_attempts=3, base_delay=1.0)
-async def classify_intent(message: str, history: list[dict]) -> PlannerResult:
+async def classify_intent(message: str, history: list[dict], images: list[str] = None) -> PlannerResult:
     """
     Use Agno Agent with Gemini to classify the user's intent.
     Returns PlannerResult with intent and optional workflow_name.
@@ -52,7 +54,8 @@ async def classify_intent(message: str, history: list[dict]) -> PlannerResult:
     prompt = f"Recent conversation:\n{context}\n\nNew message: {message}"
 
     try:
-        response = await agent.arun(prompt)
+        agno_images = [AgnoImage(url=img) for img in images] if images else None
+        response = await agent.arun(prompt, images=agno_images)
         result: PlannerResult = response.content
 
         logger.info(

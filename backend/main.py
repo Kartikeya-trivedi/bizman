@@ -18,6 +18,7 @@ from backend.api.rag import router as rag_router
 from backend.api.leads import router as leads_router
 from backend.api.workflows import router as workflows_router
 from backend.api.dashboard import router as dashboard_router
+from backend.api.webhooks import router as webhooks_router
 
 logger = get_logger("main")
 settings = get_settings()
@@ -71,6 +72,7 @@ app.include_router(rag_router, tags=["RAG"])
 app.include_router(leads_router, tags=["Leads"])
 app.include_router(workflows_router, prefix="/workflows", tags=["Workflows"])
 app.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
+app.include_router(webhooks_router, prefix="/webhooks", tags=["Webhooks"])
 
 
 @app.get("/health", tags=["Health"])

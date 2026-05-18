@@ -30,7 +30,9 @@ export const authHelpers = {
   ): Promise<AuthResponse> => {
     const response = await authApi.register(email, password, fullName);
     const data = response.data;
-    authHelpers.setSession(data);
+    if (data.access_token) {
+      authHelpers.setSession(data);
+    }
     return data;
   },
 

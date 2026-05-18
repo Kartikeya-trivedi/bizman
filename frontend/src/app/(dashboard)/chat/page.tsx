@@ -8,6 +8,7 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  images?: string[];
   sources?: string[];
   hallucination_flagged?: boolean;
   timestamp: string;
@@ -22,59 +23,127 @@ export default function ChatPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const imageRef = useRef<HTMLInputElement>(null);
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  // Load documents
+  // Load documents and history
   useEffect(() => {
     ragApi.list().then((r) => setDocuments(r.data)).catch(() => {});
+    
+    chatApi.history().then((r) => {
+      if (r.data.conversation_id) {
+        setConversationId(r.data.conversation_id);
+      }
+      if (r.data.messages && r.data.messages.length > 0) {
+        const formattedHistory = r.data.messages.map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          timestamp: m.created_at,
+          // Extract sources if they exist (requires parsing content or assuming they don't have sources array in DB)
+        }));
+        setMessages(formattedHistory);
+      }
+    }).catch(() => {});
   }, []);
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if ((!text && !attachedImage) || loading) return;
     setInput("");
+    const imgToSend = attachedImage ? [attachedImage] : [];
+    setAttachedImage(null);
 
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
       content: text,
+      images: imgToSend,
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    const assistantId = crypto.randomUUID();
+    const assistantMsg: Message = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, assistantMsg]);
+
     try {
-      const resp = await chatApi.send(text, conversationId, sessionId);
-      const data: ChatResponse = resp.data;
-      setConversationId(data.conversation_id);
-      const assistantMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.answer,
-        sources: data.sources,
-        hallucination_flagged: data.hallucination_flagged,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
+      const resp = await chatApi.sendStream(text, imgToSend, conversationId, sessionId);
+      if (!resp.body) throw new Error("No response body");
+      
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      setLoading(false); // Hide standard loading indicator since we stream
+      
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.type === "chunk") {
+              setMessages((prev) => 
+                prev.map(m => m.id === assistantId ? { ...m, content: m.content + parsed.content } : m)
+              );
+            } else if (parsed.type === "done") {
+              setConversationId(parsed.conversation_id);
+              setMessages((prev) => 
+                prev.map(m => m.id === assistantId ? {
+                  ...m,
+                  content: parsed.answer,
+                  sources: parsed.sources,
+                  hallucination_flagged: parsed.hallucination_flagged
+                } : m)
+              );
+            }
+          } catch (e) {
+            console.error("Failed to parse chunk", line);
+          }
+        }
+      }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "I'm having trouble right now. Please try again.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      setMessages((prev) => prev.map(m => m.id === assistantId ? { ...m, content: m.content || "I'm having trouble right now. Please try again." } : m));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleImageAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        setAttachedImage(ev.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+    if (imageRef.current) imageRef.current.value = "";
   };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,6 +160,52 @@ export default function ChatPage() {
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunks.current = [];
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.current.push(e.data);
+      };
+      
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
+        const file = new File([audioBlob], "recording.webm", { type: "audio/webm" });
+        
+        // Ensure UI doesn't hang
+        const prevInput = input;
+        setInput((prev) => prev + (prev ? " " : "") + "[Transcribing...]");
+        
+        try {
+          const resp = await chatApi.transcribe(file);
+          setInput(prevInput + (prevInput ? " " : "") + resp.data.text);
+        } catch (e) {
+          console.error("Transcription failed", e);
+          setInput(prevInput);
+          alert("Transcription failed. Is GROQ_API_KEY configured?");
+        }
+        
+        stream.getTracks().forEach((t) => t.stop());
+      };
+      
+      recorder.start();
+      mediaRecorder.current = recorder;
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Microphone access denied", err);
+      alert("Microphone access denied.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder.current && isRecording) {
+      mediaRecorder.current.stop();
+      setIsRecording(false);
     }
   };
 
@@ -160,6 +275,7 @@ export default function ChatPage() {
                 key={msg.id}
                 role={msg.role}
                 content={msg.content}
+                images={msg.images}
                 sources={msg.sources}
                 hallucination_flagged={msg.hallucination_flagged}
                 timestamp={msg.timestamp}
@@ -188,7 +304,39 @@ export default function ChatPage() {
 
           {/* Input */}
           <div className="p-4 border-t border-outline-variant">
+            {attachedImage && (
+              <div className="mb-3 relative inline-block">
+                <img src={attachedImage} alt="Attached" className="h-16 w-16 object-cover rounded-lg border border-outline-variant" />
+                <button
+                  onClick={() => setAttachedImage(null)}
+                  className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-error text-on-error flex items-center justify-center text-xs shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[12px]">close</span>
+                </button>
+              </div>
+            )}
             <div className="flex gap-2 items-end">
+              <input ref={imageRef} type="file" accept="image/*" className="hidden" onChange={handleImageAttach} />
+              <button
+                onClick={() => imageRef.current?.click()}
+                className="p-3 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-variant transition-all cursor-pointer border border-outline-variant"
+                title="Attach image"
+              >
+                <span className="material-symbols-outlined">image</span>
+              </button>
+              
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`p-3 rounded-xl transition-all cursor-pointer border border-outline-variant ${
+                  isRecording 
+                    ? "bg-error/10 text-error border-error/20 animate-pulse" 
+                    : "bg-surface-container-high text-on-surface hover:bg-surface-variant"
+                }`}
+                title={isRecording ? "Stop recording" : "Record voice (Whisper AI)"}
+              >
+                <span className="material-symbols-outlined">{isRecording ? "stop_circle" : "mic"}</span>
+              </button>
+
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -205,7 +353,7 @@ export default function ChatPage() {
               />
               <button
                 onClick={sendMessage}
-                disabled={!input.trim() || loading}
+                disabled={(!input.trim() && !attachedImage) || loading}
                 className="p-3 rounded-xl bg-primary text-on-primary hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 cursor-pointer"
               >
                 <span className="material-symbols-outlined">send</span>

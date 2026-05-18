@@ -108,3 +108,15 @@ async def get_ai_usage(user: dict = Depends(get_current_user)):
         AIUsageEntry(date=date, **stats)
         for date, stats in sorted(daily.items(), reverse=True)
     ]
+
+
+@router.get("/agent-traces")
+async def get_agent_traces(user: dict = Depends(get_current_user)):
+    """Fetch the latest agent traces."""
+    from backend.core.tracing import get_traces
+    
+    traces = get_traces(limit=50)
+    # Filter for the current user (if multiple users are in the system)
+    user_traces = [t for t in traces if t.get("user_id") == user["id"]]
+    
+    return user_traces

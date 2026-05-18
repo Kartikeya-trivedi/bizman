@@ -31,7 +31,7 @@ Answer the user's question using ONLY the provided context excerpts.
 Rules:
 1. Base your answer strictly on the context below. Do not add external knowledge.
 2. Cite sources by mentioning the document name (e.g., "[Source: filename.pdf]").
-3. If the context does not contain enough information, say so clearly.
+3. IF THE USER ASKS YOU TO SUMMARIZE THE DOCUMENT, YOU MUST DO SO. Do NOT complain that you lack information. Do NOT say the context is insufficient. Summarize whatever is provided.
 4. Be concise and structured. Use bullet points for lists.
 5. Never fabricate facts, numbers, or names not present in the context.
 """
@@ -120,6 +120,7 @@ async def run_rag_pipeline(query: str, user_id: str) -> RAGResult:
             sources.append(doc_name)
 
     context = "\n\n---\n\n".join(context_parts)
+    logger.info("Built RAG context", context_length=len(context))
 
     try:
         answer = await _generate_answer(query, context)

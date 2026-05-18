@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 
 from agno.agent import Agent
+from agno.media import Image as AgnoImage
 
 from backend.core.config import get_settings
 from backend.core.errors import retry, LLM_FALLBACK
@@ -45,6 +46,8 @@ async def execute(
     user_memory: str,
     user_id: str,
     conversation_id: str,
+    images: list[str] = None,
+    stream: bool = False,
 ) -> dict:
     """Execute the appropriate task based on planner intent."""
     settings = get_settings()
@@ -57,7 +60,7 @@ async def execute(
     elif intent == "workflow":
         return await _execute_workflow(message, planner_result.workflow_name)
     else:
-        return await _execute_general(message, history, user_memory)
+        return await _execute_general(message, history, user_memory, images, stream)
 
 
 async def _execute_rag(message: str, user_id: str) -> dict:
@@ -104,6 +107,13 @@ async def _execute_lead_capture(message: str, user_id: str) -> dict:
     try:
         sb.table("leads").insert(row).execute()
         logger.info("Lead captured", lead_status=lead.status, user_id=user_id)
+        
+        # Auto-trigger notification for hot leads
+        if lead.status == "hot":
+            import asyncio
+            from backend.workflows.lead_notify import notify_lead
+            asyncio.create_task(notify_lead(row["id"], user_id))
+            
     except Exception as exc:
         logger.error("Failed to store lead", error=str(exc))
 
@@ -136,6 +146,8 @@ async def _execute_general(
     message: str,
     history: list[dict],
     user_memory: str,
+    images: list[str] = None,
+    stream: bool = False,
 ) -> dict:
     """Agno Agent response with conversation history and user memory."""
     memory_block = f"\n\nUser context from memory:\n{user_memory}" if user_memory else ""
@@ -156,10 +168,36 @@ async def _execute_general(
     history_lines.append(f"USER: {message}")
     prompt = "\n".join(history_lines)
 
-    response = await agent.arun(prompt)
-    return {
-        "answer": response.content,
-        "sources": [],
-        "similarity_scores": [],
-        "rag_context": "",
-    }
+    agno_images = [AgnoImage(url=img) for img in images] if images else None
+    
+    if stream:
+        async def stream_generator():
+            full_text = ""
+            import inspect
+            response = agent.arun(prompt, images=agno_images, stream=True)
+            if inspect.iscoroutine(response):
+                response = await response
+            async for chunk in response:
+                content = getattr(chunk, "content", None)
+                if content is None and hasattr(chunk, "get"):
+                    content = chunk.get("content", "")
+                if content is None:
+                    content = str(chunk)
+                
+                full_text += content
+                yield {"type": "chunk", "content": content}
+            yield {"type": "done", "result": {
+                "answer": full_text,
+                "sources": [],
+                "similarity_scores": [],
+                "rag_context": "",
+            }}
+        return stream_generator()
+    else:
+        response = await agent.arun(prompt, images=agno_images)
+        return {
+            "answer": response.content,
+            "sources": [],
+            "similarity_scores": [],
+            "rag_context": "",
+        }

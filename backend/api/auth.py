@@ -96,6 +96,33 @@ async def get_current_user(authorization: Annotated[str | None, Header()] = None
         resp = sb.auth.get_user(token)
         if not resp.user:
             raise HTTPException(status_code=401, detail="Invalid or expired token.")
-        return {"id": str(resp.user.id), "email": resp.user.email}
+        
+        # RBAC implementation: extract role from metadata, default to "user"
+        metadata = resp.user.app_metadata or {}
+        role = metadata.get("role", "user")
+        is_admin = role == "admin"
+        
+        # For MVP/evaluation purposes, we can also check a specific email or user_metadata
+        if not is_admin and resp.user.user_metadata:
+             is_admin = resp.user.user_metadata.get("is_admin", False)
+             if is_admin:
+                 role = "admin"
+
+        return {
+            "id": str(resp.user.id), 
+            "email": resp.user.email,
+            "role": role,
+            "is_admin": is_admin
+        }
     except Exception as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
+
+
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    """
+    Dependency: ensures the current user has the admin role.
+    Usage: admin_user = Depends(require_admin)
+    """
+    if not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return user

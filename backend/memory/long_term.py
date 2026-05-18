@@ -42,7 +42,7 @@ async def save_user_memory(user_id: str, history: list[dict]) -> None:
 
     agent = Agent(
         name="BizMind Memory Extractor",
-        model=get_gemini_model(temperature=0.0, max_tokens=300),
+        model=get_gemini_model(temperature=0.0, max_tokens=1024),
         instructions=MEMORY_EXTRACTION_PROMPT,
         markdown=False,
     )

@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/leads", icon: "group", label: "Leads" },
   { href: "/workflows", icon: "account_tree", label: "Workflows" },
   { href: "/documents", icon: "description", label: "Documents" },
+  { href: "/tracing", icon: "analytics", label: "Tracing" },
 ];
 
 export default function Sidebar() {
@@ -48,7 +49,7 @@ export default function Sidebar() {
           );
         })}
         <Link
-          href="/login"
+          href="/settings"
           className="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest cursor-pointer active:scale-95 transition-colors duration-200"
         >
           <span className="material-symbols-outlined">settings</span>
