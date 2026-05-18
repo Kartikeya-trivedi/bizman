@@ -26,6 +26,18 @@ NO_INFO_RESPONSE = (
     "Please upload relevant documents or rephrase your question."
 )
 
+@retry(max_attempts=3, base_delay=1.0)
+async def _generate_fallback_answer(query: str) -> str:
+    """Generate a general answer using Agno Agent when no RAG context is found."""
+    agent = Agent(
+        name="BizMind General Assistant",
+        model=get_gemini_model(temperature=0.7, max_tokens=1024),
+        instructions="You are BizMind AI, a helpful business assistant. Answer the user's question to the best of your ability using your general knowledge.",
+        markdown=True,
+    )
+    response = await agent.arun(query)
+    return response.content
+
 RAG_SYSTEM_PROMPT = """You are BizMind AI, a precise document analyst.
 Answer the user's question using ONLY the provided context excerpts.
 Rules:
@@ -101,14 +113,18 @@ async def run_rag_pipeline(query: str, user_id: str) -> RAGResult:
 
     chunks = await _vector_search(query_embedding, user_id, settings.rag_top_k)
     if not chunks:
-        return RAGResult(answer=NO_INFO_RESPONSE)
+        logger.info("No relevant chunks found, using fallback LLM")
+        fallback_answer = await _generate_fallback_answer(query)
+        return RAGResult(answer=fallback_answer, sources=["General Knowledge"], similarity_scores=[0.0], from_cache=False)
 
     similarities = [c.get("similarity", 0.0) for c in chunks]
     max_sim = max(similarities) if similarities else 0.0
     logger.info("Vector search complete", top_similarity=max_sim, chunks_found=len(chunks))
 
     if max_sim < settings.rag_similarity_threshold:
-        return RAGResult(answer=NO_INFO_RESPONSE)
+        logger.info("Chunks below similarity threshold, using fallback LLM")
+        fallback_answer = await _generate_fallback_answer(query)
+        return RAGResult(answer=fallback_answer, sources=["General Knowledge"], similarity_scores=[max_sim], from_cache=False)
 
     context_parts = []
     sources = []

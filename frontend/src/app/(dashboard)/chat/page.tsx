@@ -58,6 +58,13 @@ export default function ChatPage() {
     }).catch(() => {});
   }, []);
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setConversationId(undefined);
+    setInput("");
+    setAttachedImage(null);
+  };
+
   const sendMessage = async () => {
     const text = input.trim();
     if ((!text && !attachedImage) || loading) return;
@@ -214,9 +221,18 @@ export default function ChatPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel: Documents */}
         <aside className="w-64 border-r border-outline-variant bg-surface-container-low flex flex-col">
-          <div className="p-4 border-b border-outline-variant">
-            <h2 className="text-sm font-semibold text-on-surface">Documents</h2>
-            <p className="text-xs text-on-surface-variant mt-0.5">Used for RAG answers</p>
+          <div className="p-4 border-b border-outline-variant flex justify-between items-center">
+            <div>
+              <h2 className="text-sm font-semibold text-on-surface">Documents</h2>
+              <p className="text-xs text-on-surface-variant mt-0.5">Used for RAG answers</p>
+            </div>
+            <button 
+              onClick={handleNewChat}
+              className="p-1.5 rounded-lg border border-outline-variant hover:bg-primary/10 hover:text-primary hover:border-primary transition-colors flex items-center justify-center bg-surface-container"
+              title="New Chat"
+            >
+              <span className="material-symbols-outlined text-sm">add_comment</span>
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {documents.length === 0 && (
