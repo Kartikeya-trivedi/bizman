@@ -54,7 +54,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:3001",
         "http://127.0.0.1:3001",
-        "https://bizman-three.vercel.app"
+        "https://bizman-three.vercel.app",
+        "https://bizman-sepia.vercel.app"
     ]
 
     # Exports
