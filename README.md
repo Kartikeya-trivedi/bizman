@@ -1,3 +1,12 @@
+---
+title: BizMind AI
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # BizMind AI 🧠
 
 > **AI Business Assistant Platform for SMEs** — FastAPI backend + Next.js frontend powered by Gemini 3.0 Flash, Supabase pgvector RAG, and Redis caching.
