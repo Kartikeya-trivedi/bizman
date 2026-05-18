@@ -40,4 +40,5 @@ RUN mkdir -p logs exports
 # Use the venv directly (no need for uv at runtime)
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Hugging Face Spaces default port is 7860
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
